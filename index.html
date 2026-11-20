@@ -222,6 +222,13 @@ body:not(.invitation-open) .page {
   min-height: 100svh;
 }
 
+/* The card floats inside the body's 32px padding, so it stops 64px short. */
+@media (min-width: 620px) {
+  body:not(.invitation-open) .page {
+    min-height: calc(100svh - 64px);
+  }
+}
+
 /* The floating phone-style card on larger screens */
 @media (min-width: 620px) {
   body {
@@ -297,186 +304,248 @@ body:not(.invitation-open) .page {
 }
 
 /* ===== 5. COVER ===== */
+/* One full-screen scene. Every layer is placed in percentages of the stage,
+   and the stage keeps a fixed aspect ratio, so the whole composition is
+   identical from 360px to 480px wide and every object shares one ground
+   line. The stage is only ever scaled down, never cropped. */
 .cover {
+  --crest-h: clamp(64px, 8.4svh, 72px);
+  --cover-chrome: 240px;
+  /* Cloud bank: everything that is left after the crest and the stage, so
+     the ground line always sits exactly on top of the clouds. */
+  --cloud-h: clamp(150px, 29svh, 270px);
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 0 16px 28px;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 0;
   overflow: hidden;
   background: repeating-linear-gradient(90deg, #e2eefb 0 26px, #f2f8fe 26px 52px);
+  isolation: isolate;
 }
 
-/* Full-bleed bunting. It stays in normal flow, so every gap below it is
-   measured from the real height of the flags at any width. */
+/* --- Sky: a soft cloud bank the whole scene stands on ------------------- */
+.cover__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 253, 255, 0) calc(100% - var(--cloud-h) - 10px),
+    rgba(250, 253, 255, 0.6) calc(100% - var(--cloud-h) + 40px),
+    #fbfdff calc(100% - var(--cloud-h) + 120px)
+  );
+}
+
+.cover .cover__clouds {
+  left: -4%;
+  right: -4%;
+  width: 108%;
+  height: clamp(88px, 13svh, 124px);
+  opacity: 1;
+}
+
+/* The bank the whole scene stands on: its humps break the ground line and
+   the mist below it fades into the paper. */
+.cover .cover__clouds--near {
+  bottom: calc(var(--cloud-h) - clamp(88px, 13svh, 124px));
+  color: #fbfdff;
+}
+
+/* A paler, softer bank just behind it, for depth. */
+.cover .cover__clouds--far {
+  bottom: calc(var(--cloud-h) - clamp(98px, 14.5svh, 136px) + 30px);
+  height: clamp(98px, 14.5svh, 136px);
+  color: #edf5fe;
+  opacity: 0.9;
+  filter: blur(1.5px);
+}
+
+/* --- Top: bunting + crest ------------------------------------------------ */
+.cover__top {
+  position: relative;
+  z-index: 3;
+  flex: none;
+}
+
+/* Full-bleed garland: it is a little taller than its natural width allows,
+   so it crops symmetrically at both ends instead of leaving a gap. */
 .cover__bunting {
   display: block;
-  width: calc(100% + 32px);
-  max-width: none;
-  /* The garland art is wider than the old one, so it is letterboxed inside
-     the old format box: same band height, no shift of anything below it. */
-  aspect-ratio: 969 / 246;
-  height: auto;
-  object-fit: contain;
-  margin-left: -16px;
+  width: 100%;
+  height: clamp(56px, 11.6svh, 112px);
+  margin: 0 auto;
+  object-fit: cover;
+  object-position: center top;
 }
 
-/* --- Crest: the cross sits exactly on the centre axis -------------------- */
 .cover__crest {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 440px;
-  height: clamp(56px, 15.3vw, 64px);
-  margin: 12px auto 0;
+  max-width: var(--page-width);
+  height: var(--crest-h);
+  margin: clamp(2px, 1svh, 10px) auto 0;
 }
 
 .cover__cross {
   width: auto;
   height: 100%;
-  filter: drop-shadow(0 4px 6px rgba(122, 91, 30, 0.26));
+  filter: drop-shadow(0 5px 7px rgba(122, 91, 30, 0.28));
 }
 
-/* Dove: small, level with the cross, top right, touching nothing. */
+/* One small gold star on each side of the cross, the same distance out. */
+.cover__star {
+  position: absolute;
+  top: 50%;
+  width: calc(var(--crest-h) * 0.17);
+  height: auto;
+  /* Centred with a margin, not a transform, so the twinkle can scale it. */
+  margin-top: calc(var(--crest-h) * -0.085);
+  color: var(--gold);
+  filter: drop-shadow(0 2px 3px rgba(122, 91, 30, 0.32));
+  animation: twinkle 5.5s ease-in-out infinite;
+}
+
+.cover__star--left {
+  right: calc(50% + var(--crest-h) * 0.34 + 9px);
+}
+
+.cover__star--right {
+  left: calc(50% + var(--crest-h) * 0.34 + 9px);
+  animation-delay: 0.9s;
+}
+
+/* Dove: level with the cross, just past the right star, touching nothing. */
 .cover__dove {
   position: absolute;
-  right: 3%;
   top: 50%;
-  width: clamp(26px, 8%, 34px);
-  height: auto;
-  transform: translateY(-50%);
-  filter: drop-shadow(0 4px 5px rgba(31, 58, 107, 0.14));
-  animation: float 9s ease-in-out infinite 0.8s;
+  left: calc(50% + var(--crest-h) * 0.34 + 31px);
+  height: clamp(48px, 13vw, 56px);
+  width: auto;
+  filter: drop-shadow(0 4px 5px rgba(31, 58, 107, 0.16));
+  animation: dove-float 9s ease-in-out infinite 0.6s;
 }
 
-/* --- Scene: one baseline, mirrored left and right ------------------------ */
+/* --- Scene: one stage, one ground line ---------------------------------- */
 .cover__scene {
   position: relative;
-  width: 100%;
-  max-width: 440px;
-  margin: 20px auto 0;
-}
-
-.cover__stage {
-  position: relative;
-  width: 100%;
-}
-
-/* The teddy owns the far left, so the envelope + baby pair starts 12% in.
-   z-index here as well as on the envelope: it keeps the pair above the
-   balloons and the ground shadows however the browser groups layers. */
-.cover__row {
-  position: relative;
-  z-index: 4;
+  z-index: 2;
+  flex: 1 1 auto;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
+  min-height: 0;
   width: 100%;
 }
 
-/* --- Balloons ------------------------------------------------------------
-   The whole PNG is used: the bunch on top, the strings and the gold bow at
-   the bottom edge of the file. Nothing is cropped, masked or clipped. */
+/* 100 x 78 units: the ground is the stage's bottom edge, so a percentage of
+   the stage's width and a percentage of the stage's height both map to the
+   same units. On very short screens the whole stage scales down instead of
+   pushing the button off the screen. */
+.cover__stage {
+  position: relative;
+  width: min(100%, calc((100svh - var(--cover-chrome)) * 100 / 81));
+  aspect-ratio: 100 / 81;
+}
+
+/* --- Balloons: behind the envelope, a mirrored pair --------------------- */
+/* Both clusters are the same artwork at the same size, so they are always
+   the same height. Each bunch rises above the envelope with its strings
+   ending behind the paper. */
 .cover__balloons {
-  display: block;
-  width: 20%;
+  position: absolute;
+  bottom: 33.95%;
+  width: 28%;
   height: auto;
-  pointer-events: none;
-  filter: drop-shadow(0 8px 10px rgba(31, 58, 107, 0.1));
-  animation: float-soft 5.5s ease-in-out infinite;
-}
-
-/* Left cluster: the knots sit ~10px above the envelope's top edge and the
-   strings + bow drop behind the envelope, so no balloon is ever covered.
-   Centred over the left half of the envelope. */
-.cover__balloons--left {
-  position: absolute;
-  top: 0;
-  left: 12%;
-  /* Sized to the old bunch's height: the new art is cropped tighter. */
-  width: 17.5%;
   z-index: 1;
-}
-
-/* Right cluster tied to the blocks: the matching half of the bouquet sheet,
-   already mirrored in the art, strings ending on the blocks' top edge. */
-.cover__group {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  /* 21.3% keeps the new bunch exactly as tall as the old one. */
-  width: 21.3%;
   pointer-events: none;
+  filter: drop-shadow(0 10px 12px rgba(31, 58, 107, 0.12));
+  animation: float-soft 7s ease-in-out infinite;
 }
 
-.cover__group .cover__balloons {
-  width: 100%;
-  /* The bow tucks behind the top edge of the blocks, so the bunch reads as
-     tied to them instead of floating. */
-  margin-bottom: -10%;
-  animation: float-soft 6.5s ease-in-out infinite 0.5s;
+/* Left: at the envelope's top-left corner. */
+.cover__balloons--left {
+  left: 4.5%;
 }
 
+/* Right: the same bunch mirrored, at the top-right corner, clear of the
+   baby's head. */
+.cover__balloons--right {
+  left: 41%;
+  transform: scaleX(-1);
+  animation-name: float-soft-mirror;
+  animation-duration: 7.6s;
+  animation-delay: 0.4s;
+}
 
-/* --- Ground shadows: one per object, all on the baseline ---------------- */
+/* --- Ground shadows: one soft ellipse per object ------------------------ */
 .cover__ground {
   position: absolute;
-  bottom: -3px;
-  height: 9px;
+  bottom: 0;
+  height: 2.6%;
   border-radius: 50%;
-  background: rgba(31, 58, 107, 0.16);
-  filter: blur(5px);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(20, 41, 78, 0.34), rgba(20, 41, 78, 0) 72%);
+  filter: blur(4px);
+  transform: translateY(34%);
   z-index: 2;
   pointer-events: none;
 }
 
 .cover__ground--envelope {
-  left: 12%;
-  width: 40%;
+  left: 6.5%;
+  width: 68%;
 }
 
 .cover__ground--baby {
-  left: 53.5%;
-  width: 26%;
+  left: 64%;
+  width: 36%;
 }
 
 .cover__ground--bear {
-  left: 0;
-  width: 11%;
+  left: 2%;
+  width: 25%;
 }
 
 .cover__ground--blocks {
-  left: 82.3%;
-  width: 14%;
+  left: 64%;
+  width: 21%;
 }
 
-/* --- Envelope ------------------------------------------------------------ */
+/* --- Envelope: the hero ------------------------------------------------- */
 .envelope {
-  position: relative;
-  flex: 0 0 40%;
-  width: 40%;
-  margin-left: 12%;
-  margin-right: 1.5%;
+  position: absolute;
+  left: 7.5%;
+  bottom: 0;
+  width: 66%;
   aspect-ratio: 600 / 303;
   padding: 0;
   border: 0;
   background: none;
   z-index: 4;
-  transition: transform 0.35s ease;
+  transition: transform 0.3s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Idle float lives on its own layer, so the press feedback on the button
+   never fights the animation. */
+.envelope__float {
+  position: absolute;
+  inset: 0;
+  animation: envelope-bob 6.5s ease-in-out infinite;
+}
+
 .envelope:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 .envelope:active {
-  transform: translateY(-1px) scale(0.99);
+  transform: translateY(0) scale(0.99);
 }
 
 .envelope__closed,
@@ -487,11 +556,11 @@ body:not(.invitation-open) .page {
   width: 100%;
   height: auto;
   transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.25, 1);
-  filter: drop-shadow(0 12px 14px rgba(31, 58, 107, 0.18));
+  filter: drop-shadow(0 14px 18px rgba(31, 58, 107, 0.28));
 }
 
 /* Same width and same bottom edge as the closed envelope, fitted inside that
-   footprint, so opening it never climbs over the balloon cluster. */
+   footprint, so opening it never changes its size or position. */
 .envelope__open {
   object-position: bottom center;
   opacity: 0;
@@ -500,6 +569,11 @@ body:not(.invitation-open) .page {
 }
 
 .cover.is-open .envelope {
+  transform: none;
+}
+
+.cover.is-open .envelope__float {
+  animation: none;
   transform: none;
 }
 
@@ -517,14 +591,15 @@ body:not(.invitation-open) .page {
 
 /* --- Tag, laid flat on the envelope's front face -------------------------
    Positioned in percentages of the envelope, so it stays on the paper in
-   the lower-right corner at every screen size. */
+   the lower-right corner at every screen size, clear of the bow and of the
+   baby's shoulder. */
 .envelope__tag {
   position: absolute;
-  left: 61%;
+  left: 60%;
   bottom: 5%;
   z-index: 6;
-  width: 28%;
-  transform: rotate(-8deg);
+  width: 24%;
+  transform: rotate(-6deg);
   transform-origin: 50% 50%;
   animation: tag-sway 6s ease-in-out infinite;
   filter: drop-shadow(0 2px 3px rgba(31, 58, 107, 0.24));
@@ -547,7 +622,7 @@ body:not(.invitation-open) .page {
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: clamp(5.2px, 1.45vw, 6.6px);
+  font-size: clamp(5.4px, 1.7vw, 8px);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: 0.03em;
@@ -559,7 +634,7 @@ body:not(.invitation-open) .page {
 .cover.is-open .envelope__tag {
   animation: none;
   opacity: 0;
-  transform: rotate(-5deg) translateY(-6px);
+  transform: rotate(-4deg) translateY(-6px);
   transition: opacity 0.35s ease, transform 0.45s ease;
 }
 
@@ -578,7 +653,7 @@ body:not(.invitation-open) .page {
   transform: translateY(8px);
   pointer-events: none;
   font-family: var(--font-script);
-  font-size: clamp(8.5px, 2.75vw, 12.5px);
+  font-size: clamp(10px, 3vw, 14px);
   line-height: 1.15;
   color: var(--navy);
   text-align: center;
@@ -603,42 +678,50 @@ body:not(.invitation-open) .page {
   transition-delay: 0.55s;
 }
 
-/* --- Baby ---------------------------------------------------------------- */
+/* --- Baby: in front of the envelope, at its right end ------------------- */
 .cover__baby {
-  position: relative;
-  flex: 0 0 26%;
-  width: 26%;
+  position: absolute;
+  left: 65.4%;
+  bottom: 0;
+  width: 33.5%;
   height: auto;
   z-index: 5;
-  filter: drop-shadow(0 12px 14px rgba(31, 58, 107, 0.16));
+  filter: drop-shadow(0 10px 12px rgba(31, 58, 107, 0.2));
 }
 
-/* --- Teddy + blocks, standing on the same baseline ----------------------- */
-/* Beside the envelope, on its left, clear of it in both states. */
+/* --- Teddy: in front of the envelope's left end, same ground line ------- */
 .cover__bear {
   position: absolute;
-  left: 0;
+  left: 3.5%;
   bottom: 0;
-  width: 12%;
+  width: 21.5%;
   z-index: 5;
   pointer-events: none;
-  filter: drop-shadow(0 8px 8px rgba(31, 58, 107, 0.16));
+  filter: drop-shadow(0 8px 9px rgba(31, 58, 107, 0.18));
 }
 
+/* --- Blocks: bottom right, beside the briefcase, in front --------------- */
 .cover__blocks {
-  width: 67%;
-  flex: none;
+  position: absolute;
+  left: 65.6%;
+  bottom: 0;
+  width: 17%;
   height: auto;
-  filter: drop-shadow(0 6px 7px rgba(31, 58, 107, 0.16));
+  z-index: 6;
+  filter: drop-shadow(0 6px 7px rgba(31, 58, 107, 0.18));
 }
 
 /* --- Call to action ------------------------------------------------------ */
 .cover__action {
   position: relative;
-  z-index: 6;
+  z-index: 7;
+  flex: none;
   display: flex;
+  align-items: flex-end;
   justify-content: center;
-  margin-top: 58px;
+  width: 100%;
+  height: var(--cloud-h);
+  padding: 0 16px max(16px, calc(env(safe-area-inset-bottom) + 12px));
 }
 
 .cta {
@@ -646,7 +729,8 @@ body:not(.invitation-open) .page {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 22px;
+  min-height: 52px;
+  padding: 0 26px;
   width: max-content;
   max-width: 100%;
   border: 1px solid rgba(201, 162, 75, 0.7);
@@ -654,15 +738,15 @@ body:not(.invitation-open) .page {
   background: linear-gradient(180deg, #2d4f86 0%, #1a3161 100%);
   box-shadow: 0 10px 20px rgba(31, 58, 107, 0.26);
   color: #fff;
-  font-size: 12.5px;
+  font-size: 16px;
   font-weight: 400;
   letter-spacing: 0.01em;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
+  animation: cta-glow 2.5s ease-in-out infinite;
 }
 
 .cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 24px rgba(31, 58, 107, 0.3);
 }
 
 .cta:active {
@@ -670,9 +754,17 @@ body:not(.invitation-open) .page {
 }
 
 .cta__arrow {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   color: var(--gold-light);
+}
+
+/* Inside the floating card on larger screens the cover fills the card, not
+   the raw viewport, so the button never sits below the fold. */
+@media (min-width: 620px) {
+  .cover {
+    min-height: calc(100svh - 64px);
+  }
 }
 
 .noscript {
@@ -1886,11 +1978,6 @@ body:not(.invitation-open) .page {
     padding-right: 16px;
   }
 
-  .cover {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
   .countdown__grid {
     gap: 10px;
   }
@@ -1963,6 +2050,50 @@ body:not(.invitation-open) .page {
   }
   50% {
     transform: translateY(-5px);
+  }
+}
+
+/* Envelope idle float: a 4px lift that invites the tap. */
+@keyframes envelope-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Mirrored balloon bunch: drifts without losing its flip. */
+@keyframes float-soft-mirror {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(-1);
+  }
+  50% {
+    transform: translateY(-5px) scaleX(-1);
+  }
+}
+
+/* Dove keeps its vertical centring while it drifts. */
+@keyframes dove-float {
+  0%,
+  100% {
+    transform: translateY(-50%);
+  }
+  50% {
+    transform: translateY(calc(-50% - 5px));
+  }
+}
+
+/* Soft gold halo on the open button. */
+@keyframes cta-glow {
+  0%,
+  100% {
+    box-shadow: 0 10px 20px rgba(31, 58, 107, 0.26), 0 0 0 0 rgba(231, 206, 149, 0);
+  }
+  50% {
+    box-shadow: 0 12px 24px rgba(31, 58, 107, 0.3), 0 0 20px 4px rgba(231, 206, 149, 0.55);
   }
 }
 
@@ -2075,20 +2206,32 @@ body:not(.invitation-open) .page {
          1. COVER
          =================================================================== -->
     <header class="cover" id="cover">
-      <img class="cover__bunting" src="assets/hd/bunting-garland.png" alt="" width="2131" height="333">
+      <!-- Sky: two soft cloud banks along the bottom, behind the button -->
+      <div class="cover__sky" aria-hidden="true">
+        <svg class="clouds cover__clouds cover__clouds--far" viewBox="0 0 480 90" preserveAspectRatio="none"><use href="#art-clouds"></use></svg>
+        <svg class="clouds cover__clouds cover__clouds--near" viewBox="0 0 480 90" preserveAspectRatio="none"><use href="#art-clouds"></use></svg>
+      </div>
 
-      <!-- Cross on the centre axis, dove level with it -->
-      <div class="cover__crest" aria-hidden="true">
-        <img class="cover__cross" src="assets/hd/cross-cover.png" alt="" width="240" height="357">
-        <img class="cover__dove" src="assets/hd/dove.png" alt="" width="220" height="192">
+      <div class="cover__top">
+        <!-- Full-bleed bunting -->
+        <img class="cover__bunting" src="assets/hd/bunting-garland.png" alt="" width="2131" height="333">
+
+        <!-- Cross on the centre axis, a star on each side, dove level -->
+        <div class="cover__crest" aria-hidden="true">
+          <svg class="cover__star cover__star--left" viewBox="0 0 24 24"><use href="#i-sparkle"></use></svg>
+          <img class="cover__cross" src="assets/hd/cross-cover.png" alt="" width="240" height="357">
+          <svg class="cover__star cover__star--right" viewBox="0 0 24 24"><use href="#i-sparkle"></use></svg>
+          <img class="cover__dove" src="assets/hd/dove.png" alt="" width="220" height="192">
+        </div>
       </div>
 
       <div class="cover__scene">
         <div class="cover__stage">
-          <!-- Left cluster: whole bunch above the envelope, strings behind it -->
+          <!-- Balloons behind the envelope: a mirrored pair, strings tucked -->
           <img class="cover__balloons cover__balloons--left" src="assets/hd/balloons-bouquet-left.png" alt="" width="599" height="1023">
+          <img class="cover__balloons cover__balloons--right" src="assets/hd/balloons-bouquet-left.png" alt="" width="599" height="1023">
 
-          <!-- One blurred shadow per object, all sitting on the baseline -->
+          <!-- One soft shadow per object, all on the same ground line -->
           <span class="cover__ground cover__ground--envelope"></span>
           <span class="cover__ground cover__ground--baby"></span>
           <span class="cover__ground cover__ground--bear"></span>
@@ -2096,8 +2239,8 @@ body:not(.invitation-open) .page {
 
           <img class="cover__bear" src="assets/hd/teddy-bowtie.png" alt="" width="492" height="597">
 
-          <div class="cover__row">
-            <button class="envelope" id="envelope" type="button" aria-label="Open the invitation" aria-controls="invitation" aria-expanded="false">
+          <button class="envelope" id="envelope" type="button" aria-label="Open the invitation" aria-controls="invitation" aria-expanded="false">
+            <span class="envelope__float">
               <img class="envelope__closed" src="assets/hd/envelope-closed.png" alt="" width="600" height="303">
               <img class="envelope__open" src="assets/hd/envelope-open.png" alt="" width="600" height="587">
               <span class="envelope__message" id="envelopeMessage" aria-live="polite"></span>
@@ -2105,16 +2248,12 @@ body:not(.invitation-open) .page {
                 <img class="envelope__tag-img" src="assets/hd/tag-blank.png" alt="" width="492" height="312">
                 <span class="envelope__tag-text">YOU'RE<br>INVITED!</span>
               </span>
-            </button>
+            </span>
+          </button>
 
-            <img class="cover__baby" src="assets/hd/baby-briefcase.png" alt="Baby in a black business suit holding a briefcase" width="334" height="620">
-          </div>
+          <img class="cover__baby" src="assets/hd/baby-briefcase.png" alt="Baby in a black business suit holding a briefcase" width="334" height="620">
 
-          <!-- Right cluster: balloons tied to the ABC blocks -->
-          <div class="cover__group">
-            <img class="cover__balloons cover__balloons--right" src="assets/hd/balloons-bouquet-right.png" alt="" width="729" height="1023">
-            <img class="cover__blocks" src="assets/hd/abc-blocks.png" alt="" width="260" height="242">
-          </div>
+          <img class="cover__blocks" src="assets/hd/abc-blocks.png" alt="" width="260" height="242">
         </div>
       </div>
 
