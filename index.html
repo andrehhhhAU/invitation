@@ -3381,8 +3381,58 @@ body:not(.invitation-open) .page {
     });
     window.addEventListener("pagehide", pauseForBackground);
 
+    /* The music should greet the guest, so we start it straight away. Most
+       browsers only allow sound after the guest interacts: if that first
+       attempt is refused, the next tap or keypress (the envelope tap) starts
+       it instead. Nothing is shown in that case; it is not an error. */
+    var gestureArmed = false;
+
+    function armFirstGesture() {
+      if (gestureArmed) return;
+      gestureArmed = true;
+
+      var events = ["pointerdown", "touchstart", "keydown", "click"];
+
+      function disarm() {
+        gestureArmed = false;
+        events.forEach(function (type) {
+          document.removeEventListener(type, onGesture, true);
+        });
+      }
+
+      function onGesture() {
+        disarm();
+        if (audio.paused) startPlayback();
+      }
+
+      events.forEach(function (type) {
+        document.addEventListener(type, onGesture, true);
+      });
+    }
+
+    function tryAutoplay() {
+      audio.volume = 0;
+
+      var attempt = audio.play();
+      if (attempt && typeof attempt.then === "function") {
+        attempt
+          .then(function () {
+            fadeTo(1);
+          })
+          .catch(function () {
+            audio.volume = 1;
+            setPlaying(false);
+            armFirstGesture();
+          });
+      } else {
+        fadeTo(1);
+      }
+    }
+
     setPlaying(false);
     setMuted(false);
+
+    if (hasSource) tryAutoplay();
   }
 
   /* ------------------------------------------------------------------------

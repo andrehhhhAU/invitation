@@ -145,7 +145,8 @@ window.INVITE_CONFIG = {
   /* musicTitle: the name shown on the player.                           */
   /* musicCredit: optional small line under the player, e.g. an artist   */
   /*   or licence note. Leave "" to show nothing.                        */
-  /* Music only starts when the guest taps play (browsers block autoplay).*/
+  /* The music tries to start as soon as the link opens. Browsers that    */
+  /*   block sound until a tap fall back to the first tap or keypress.    */
   /* ------------------------------------------------------------------ */
   musicFile: "assets/music.mp3",
   musicTitle: "Little Boss Theme",
