@@ -1209,6 +1209,27 @@ body:not(.invitation-open) .page {
   height: 15px;
 }
 
+.player__credit {
+  margin: 6px auto 0;
+  max-width: 340px;
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--navy-soft);
+  opacity: 0.75;
+}
+
+.player__play:disabled,
+.player__vol:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.player__play:disabled:hover {
+  transform: none;
+  background: var(--navy);
+}
+
 .player__note {
   margin: 7px auto 0;
   max-width: 340px;
@@ -2418,6 +2439,7 @@ body:not(.invitation-open) .page {
               <svg class="icon player__glyph player__glyph--mute" aria-hidden="true" hidden><use href="#i-mute"></use></svg>
             </button>
           </div>
+          <p class="player__credit" id="playerCredit" hidden></p>
           <p class="player__note" id="playerNote" hidden></p>
 
           <p class="script-note" data-reveal>We can’t wait to celebrate with you!</p>
@@ -3141,6 +3163,8 @@ body:not(.invitation-open) .page {
     var progress = document.getElementById("musicProgress");
     var muteButton = document.getElementById("musicMute");
     var hint = document.getElementById("playerNote");
+    var credit = document.getElementById("playerCredit");
+    var titleEl = $(".player__title");
 
     if (!audio || !playButton || !progress || !muteButton) return;
 
@@ -3149,9 +3173,34 @@ body:not(.invitation-open) .page {
     var volumeIcon = $(".player__glyph--vol", muteButton);
     var muteIcon = $(".player__glyph--mute", muteButton);
 
-    if (config.musicFile) {
-      audio.src = config.musicFile;
+    /* Paths stay relative so the page works from any folder (and on GitHub
+       Pages, where the capitalisation has to match the file exactly). */
+    var musicFile = typeof config.musicFile === "string" ? config.musicFile.trim() : "";
+    var musicTitle =
+      typeof config.musicTitle === "string" && config.musicTitle.trim()
+        ? config.musicTitle.trim()
+        : "Little Boss Theme";
+    var musicCredit = typeof config.musicCredit === "string" ? config.musicCredit.trim() : "";
+    var hasSource = musicFile !== "";
+    var stopping = false;
+    var FADE_MS = 1000;
+    var fadeFrame = 0;
+
+    if (titleEl) titleEl.textContent = musicTitle;
+
+    if (credit) {
+      credit.textContent = musicCredit;
+      credit.hidden = musicCredit === "";
+    }
+
+    if (hasSource) {
+      audio.src = musicFile;
+      progress.disabled = true; // until the duration is known
     } else {
+      /* No file configured yet: leave the player quietly inert. No error is
+         shown, because nothing is broken. */
+      playButton.disabled = true;
+      muteButton.disabled = true;
       progress.disabled = true;
     }
 
@@ -3161,10 +3210,16 @@ body:not(.invitation-open) .page {
       hint.textContent = message;
     }
 
+    function hideHint() {
+      if (!hint) return;
+      hint.hidden = true;
+      hint.textContent = "";
+    }
+
     function setPlaying(isPlaying) {
       if (playIcon) playIcon.hidden = isPlaying;
       if (pauseIcon) pauseIcon.hidden = !isPlaying;
-      playButton.setAttribute("aria-label", isPlaying ? "Pause Little Boss Theme" : "Play Little Boss Theme");
+      playButton.setAttribute("aria-label", (isPlaying ? "Pause " : "Play ") + musicTitle);
       playButton.setAttribute("aria-pressed", String(isPlaying));
     }
 
@@ -3175,43 +3230,122 @@ body:not(.invitation-open) .page {
       muteButton.setAttribute("aria-label", isMuted ? "Unmute music" : "Mute music");
     }
 
-    playButton.addEventListener("click", function () {
-      if (!config.musicFile) {
-        showHint("Add a music file in js/config.js to play the Little Boss theme.");
+    /* Gentle 1s fade. Skipped for guests who prefer reduced motion. */
+    function cancelFade() {
+      if (fadeFrame) {
+        window.cancelAnimationFrame(fadeFrame);
+        fadeFrame = 0;
+      }
+    }
+
+    function fadeTo(target, done) {
+      cancelFade();
+
+      var duration = reduceMotion.matches ? 0 : FADE_MS;
+      var from = audio.volume;
+      var startedAt = 0;
+
+      if (!duration) {
+        audio.volume = target;
+        if (done) done();
         return;
       }
 
-      if (audio.paused) {
-        var attempt = audio.play();
-        if (attempt && typeof attempt.catch === "function") {
-          attempt.catch(function () {
-            showHint("Your browser blocked playback. Tap play again to start the music.");
-          });
+      function step(now) {
+        if (!startedAt) startedAt = now;
+        var elapsed = (now - startedAt) / duration;
+        var amount = elapsed >= 1 ? 1 : elapsed;
+        audio.volume = from + (target - from) * amount;
+
+        if (amount < 1) {
+          fadeFrame = window.requestAnimationFrame(step);
+        } else {
+          fadeFrame = 0;
+          audio.volume = target;
+          if (done) done();
         }
+      }
+
+      fadeFrame = window.requestAnimationFrame(step);
+    }
+
+    function startPlayback() {
+      if (!hasSource) return;
+      stopping = false;
+      cancelFade();
+
+      /* Still playing from a fade-out: just bring it back up. */
+      if (!audio.paused) {
+        setPlaying(true);
+        fadeTo(1);
+        return;
+      }
+
+      audio.volume = 0;
+
+      var attempt = audio.play();
+      if (attempt && typeof attempt.then === "function") {
+        attempt.then(function () {
+          fadeTo(1);
+        }).catch(function () {
+          audio.volume = 1;
+          setPlaying(false);
+          showHint("Music isn’t available right now");
+        });
       } else {
+        fadeTo(1);
+      }
+    }
+
+    function stopPlayback() {
+      if (audio.paused) {
+        setPlaying(false);
+        return;
+      }
+      stopping = true;
+      cancelFade();
+      fadeTo(0, function () {
+        stopping = false;
         audio.pause();
+        audio.volume = 1;
+      });
+    }
+
+    playButton.addEventListener("click", function () {
+      if (!hasSource) return;
+
+      if (audio.paused || stopping) {
+        startPlayback();
+      } else {
+        setPlaying(false); // immediate feedback while the fade-out runs
+        stopPlayback();
       }
     });
 
     muteButton.addEventListener("click", function () {
+      if (!hasSource) return;
       audio.muted = !audio.muted;
     });
 
     audio.addEventListener("play", function () {
       setPlaying(true);
-      if (hint) hint.hidden = true;
+      hideHint();
     });
     audio.addEventListener("pause", function () {
+      stopping = false;
       setPlaying(false);
     });
     audio.addEventListener("volumechange", function () {
       setMuted(audio.muted);
     });
     audio.addEventListener("error", function () {
-      if (config.musicFile) {
-        showHint("We couldn't load that music file. Please check the path in js/config.js.");
-      }
+      if (!hasSource) return;
+      stopping = false;
+      cancelFade();
+      audio.volume = 1;
+      progress.disabled = true;
       setPlaying(false);
+      showHint("Music isn’t available right now");
     });
 
     audio.addEventListener("loadedmetadata", function () {
@@ -3228,7 +3362,24 @@ body:not(.invitation-open) .page {
     progress.addEventListener("input", function () {
       if (!isFinite(audio.duration) || audio.duration === 0) return;
       audio.currentTime = (Number(progress.value) / 100) * audio.duration;
+      progress.style.setProperty("--progress", progress.value + "%");
     });
+
+    /* Guests who switch apps or lock the phone get silence, and the music
+       never comes back on its own when they return. */
+    function pauseForBackground() {
+      if (!hasSource || audio.paused) return;
+      stopping = false;
+      cancelFade();
+      audio.pause();
+      audio.volume = 1;
+      setPlaying(false);
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") pauseForBackground();
+    });
+    window.addEventListener("pagehide", pauseForBackground);
 
     setPlaying(false);
     setMuted(false);
