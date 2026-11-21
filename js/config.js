@@ -139,9 +139,15 @@ window.INVITE_CONFIG = {
 
   /* ------------------------------------------------------------------ */
   /* Music                                                               */
-  /* Add an MP3/OGG to assets/ and put its path here,                    */
-  /* e.g. "assets/little-boss-theme.mp3". Music only starts when the     */
-  /* guest taps play (browsers block autoplay).                          */
+  /* musicFile: relative path to the song, e.g. "assets/music.mp3".      */
+  /*   Keep the capitalisation identical to the real file (GitHub Pages  */
+  /*   is case-sensitive). Leave "" and the player simply stays idle.    */
+  /* musicTitle: the name shown on the player.                           */
+  /* musicCredit: optional small line under the player, e.g. an artist   */
+  /*   or licence note. Leave "" to show nothing.                        */
+  /* Music only starts when the guest taps play (browsers block autoplay).*/
   /* ------------------------------------------------------------------ */
-  musicFile: ""
+  musicFile: "assets/music.mp3",
+  musicTitle: "Little Boss Theme",
+  musicCredit: ""
 };
